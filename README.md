@@ -9,6 +9,16 @@
 
 Laravel Deepl is a Laravel package that integrates with the [DeepL API](https://www.deepl.com/). It allows you to translate text, documents, manage glossaries, and perform other useful tasks using the DeepL service.
 
+## Requirements
+
+Before installing and using this package, please ensure your environment meets the following minimum requirements:
+
+- **PHP 8.2** or higher
+- **Laravel 11.0** or higher
+- **GuzzleHTTP 7.0** or higher
+
+These versions are required to ensure compatibility with the package and the features it provides. Make sure your project is running on these versions or higher before integrating this package.
+
 ## Installation
 
 You can install the package via Composer:
