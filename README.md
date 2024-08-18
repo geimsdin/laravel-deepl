@@ -72,6 +72,17 @@ echo $translatedText; // Outputs: Hallo, Welt!
 
 The package includes a caching mechanism that stores translations in the database to optimize performance and reduce the number of API calls to DeepL. This can be especially useful when translating the same text multiple times or when working with large volumes of text.
 
+#### Running the Migration
+
+Before you can use the caching feature, you need to publish and run the migration that creates the `translations` table in your database:
+
+```bash
+php artisan vendor:publish --tag=laravel-deepl-migrations
+php artisan migrate
+```
+
+This will create the necessary table where translations will be stored.
+
 #### How Caching Works
 
 When you request a translation, the package checks if the translation already exists in the database before making an API call to DeepL. This is controlled by the `useCache` property, which is enabled by default.
