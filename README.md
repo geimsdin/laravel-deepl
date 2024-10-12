@@ -100,6 +100,27 @@ When you request a translation, the package checks if the translation already ex
 - **If the translation exists in the cache:** The cached translation is returned, avoiding an API call.
 - **If the translation does not exist in the cache:** An API call is made to DeepL, and the translation result is stored in the database for future requests.
 
+#### Important Note on Caching and Options
+
+It’s important to understand that the translation cache is sensitive to the options used in the translation request. For example, the following two translation requests will result in different cached entries:
+
+```php
+$translatedText = $client->textTranslation('Hello, world!')
+    ->sourceLang('en')
+    ->targetLang('de')
+    ->getTranslation();
+
+$translatedText = $client->textTranslation('Hello, world!')
+    ->sourceLang('en')
+    ->targetLang('de')
+    ->formality('less')
+    ->getTranslation();
+```
+
+In the first case, the translation is performed with default settings. In the second case, the translation includes the formality option set to `less`. Even though both translations are for the same text and languages, they will produce different results and therefore be cached separately.
+
+This means that any change in the options (such as formality, splitSentences, preserveFormatting, etc.) will lead to a different cache entry. Make sure to consider this when working with translations that require specific options, as the cache will reflect these variations.
+
 #### Example Usage
 
 ```php
@@ -363,3 +384,14 @@ If you discover any security-related issues, please email zanek.pavel@gmail.com 
 
 The MIT License (MIT). Please see [License File](LICENSE.md) for more information.
 
+## Support the Developer
+
+If you find this package helpful and would like to support its ongoing development, consider leaving a tip. Your support is greatly appreciated!
+
+[Leave a Tip](https://streamelements.com/pavelzanek/tip)
+
+Thank you for your generosity!
+
+### About the Developer
+
+This package is developed and maintained by [Pavel Zaněk](https://www.pavelzanek.com/en), a passionate developer with extensive experience in Laravel and PHP development.
