@@ -55,6 +55,8 @@ class DeeplClient
     {
         $clientMethod = $this->client->$method(...$arguments);
 
-        return $this->useCache ? $clientMethod : $clientMethod->withoutCache();
+        return method_exists($clientMethod, 'withoutCache') && !$this->useCache
+            ? $clientMethod->withoutCache()
+            : $clientMethod;
     }
 }

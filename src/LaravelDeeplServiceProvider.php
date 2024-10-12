@@ -26,7 +26,7 @@ class LaravelDeeplServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        AboutCommand::add('Laravel Deepl', fn () => ['Version' => '0.1.0']);
+        AboutCommand::add('Laravel Deepl', fn () => ['Version' => '0.1.1']);
 
         $this->publishes([
             __DIR__.'/../config/laravel-deepl.php' => config_path('laravel-deepl.php'),
