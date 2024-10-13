@@ -4,6 +4,8 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;
 use PavelZanek\LaravelDeepl\DeeplClient;
+use Symfony\Component\Console\Exception\InvalidArgumentException;
+use Symfony\Component\Console\Exception\InvalidOptionException;
 
 it('can translate a PHP language file using TranslateLangFilesCommand', function () {
     // Set up a mock DeeplClient
@@ -98,9 +100,6 @@ it('can translate a JSON language file using TranslateLangFilesCommand', functio
     File::delete($tempJsonFilePath);
     File::delete($translatedJsonFilePath);
 });
-
-use Symfony\Component\Console\Exception\InvalidArgumentException;
-use Symfony\Component\Console\Exception\InvalidOptionException;
 
 it('fails if unrecognized arguments are provided', function () {
     $this->expectException(InvalidArgumentException::class);

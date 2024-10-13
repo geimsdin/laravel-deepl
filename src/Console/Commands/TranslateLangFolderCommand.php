@@ -6,15 +6,15 @@ use Illuminate\Console\Command;
 use PavelZanek\LaravelDeepl\Services\TranslationService;
 use PavelZanek\LaravelDeepl\Traits\Console\RunsPint;
 
-class TranslateLangFilesCommand extends Command
+class TranslateLangFolderCommand extends Command
 {
     use RunsPint;
 
     /**
      * @var string
      */
-    protected $signature = 'deepl:translate
-                            {file : Path to the file to translate}
+    protected $signature = 'deepl:translate-folder
+                            {folder : Path to the folder to translate}
                             {--sourceLang=en : Source language (default: en)}
                             {--targetLang=cs : Target language (default: cs)}
                             {--with-pint : Run Pint after translation (only in local environment)}';
@@ -22,7 +22,7 @@ class TranslateLangFilesCommand extends Command
     /**
      * @var string
      */
-    protected $description = 'Translate Laravel localization files using DeepL';
+    protected $description = 'Translate all localization files in a folder using DeepL';
 
     public function __construct(
         private readonly TranslationService $translationService
@@ -37,18 +37,18 @@ class TranslateLangFilesCommand extends Command
     {
         $sourceLang = $this->option('sourceLang');
         $targetLang = $this->option('targetLang');
-        $filePath = $this->argument('file');
+        $folderPath = $this->argument('folder');
 
-        if (! is_string($filePath) || ! is_string($sourceLang) || ! is_string($targetLang)) {
+        if (! is_string($folderPath) || ! is_string($sourceLang) || ! is_string($targetLang)) {
             $this->error('Invalid arguments provided.');
 
             return self::FAILURE;
         }
 
         try {
-            $this->translationService->translateFile($filePath, $sourceLang, $targetLang);
+            $this->translationService->translateFolder($folderPath, $sourceLang, $targetLang);
 
-            $this->info('Translations have been successfully written.');
+            $this->info('All files in the folder have been successfully translated.');
 
             $this->maybeRunPint();
 

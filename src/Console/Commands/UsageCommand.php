@@ -8,15 +8,11 @@ use PavelZanek\LaravelDeepl\DeeplClient;
 class UsageCommand extends Command
 {
     /**
-     * The name and signature of the console command.
-     *
      * @var string
      */
     protected $signature = 'deepl:usage';
 
     /**
-     * The console command description.
-     *
      * @var string
      */
     protected $description = 'Retrieve usage information within the current billing period together with the corresponding account limits';

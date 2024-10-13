@@ -5,6 +5,39 @@
 [![GitHub Issues](https://img.shields.io/github/issues/PavelZanek/laravel-deepl.svg?style=flat-square)](https://github.com/PavelZanek/laravel-deepl/issues)
 [![License](https://img.shields.io/github/license/PavelZanek/laravel-deepl.svg?style=flat-square)](https://github.com/PavelZanek/laravel-deepl/blob/main/LICENSE.md)
 
+## Table of Contents
+
+- [Introduction](#introduction)
+- [Requirements](#requirements)
+- [Installation](#installation)
+  - [Configuration](#configuration)
+  - [Migrations](#migrations)
+  - [Environment Variables](#environment-variables)
+- [Usage](#usage)
+  - [Usage Options: Facade vs. Client](#usage-options-facade-vs-client)
+  - [Text Translation](#text-translation)
+  - [Document Translation](#document-translation)
+  - [Glossary Management](#glossary-management)
+  - [Language Support](#language-support)
+  - [Usage Limits](#usage-limits)
+- [Translating Localization Files](#translating-localization-files)
+  - [Translating a Single Localization File](#translating-a-single-localization-file)
+  - [Translating Entire Localization Folders](#translating-entire-localization-folders)
+  - [Handling JSON and PHP Files](#handling-json-and-php-files)
+  - [Placeholders](#placeholders)
+  - [Directory Creation](#directory-creation)
+  - [Running Pint Code Formatter](#running-pint-code-formatter)
+- [Helpers](#helpers)
+  - [Enumerations](#enumerations)
+- [Testing](#testing)
+- [Linting](#linting)
+- [Changelog](#changelog)
+- [Contributing](#contributing)
+- [Security](#security)
+- [License](#license)
+- [Support the Developer](#support-the-developer)
+- [About the Developer](#about-the-developer)
+
 ## Introduction
 
 Laravel Deepl is a Laravel package that integrates with the [DeepL API](https://www.deepl.com/). It allows you to translate text, documents, manage glossaries, and perform other useful tasks using the DeepL service.
@@ -36,6 +69,24 @@ php artisan vendor:publish --tag=laravel-deepl-config
 ```
 
 This will create a `config/laravel-deepl.php` file where you can set your DeepL API key and other configuration options.
+
+### Migrations
+
+The package includes a migration that creates the translations table used for caching translations (more info: [Text Translation](#text-translation)). To publish the migration files, run:
+
+```bash
+php artisan vendor:publish --tag=laravel-deepl-migrations
+```
+
+This command will copy the migration files to your application’s `database/migrations` directory.
+
+After publishing the migrations, you need to run them to create the necessary database tables:
+
+```bash
+php artisan migrate
+```
+
+This will execute the migration and create the translations table in your database, enabling the caching feature.
 
 ### Environment Variables
 
@@ -119,7 +170,7 @@ $translatedText = $client->textTranslation('Hello, world!')
 
 In the first case, the translation is performed with default settings. In the second case, the translation includes the formality option set to `less`. Even though both translations are for the same text and languages, they will produce different results and therefore be cached separately.
 
-This means that any change in the options (such as formality, splitSentences, preserveFormatting, etc.) will lead to a different cache entry. Make sure to consider this when working with translations that require specific options, as the cache will reflect these variations.
+This means that any change in the options (such as `formality`, `splitSentences`, `preserveFormatting`, etc.) will lead to a different cache entry. Make sure to consider this when working with translations that require specific options, as the cache will reflect these variations.
 
 #### Example Usage
 
@@ -136,11 +187,11 @@ $translatedText = $client->textTranslation('Hello, world!')
 echo $translatedText; // Outputs: Hallo, Welt!
 ```
 
-In this example, the translation of “Hello, world!” from English to German is either retrieved from the cache or, if not cached, obtained from DeepL and then stored in the cache for future use.
+In this example, the translation of _“Hello, world!”_ from English to German is either retrieved from the cache or, if not cached, obtained from DeepL and then stored in the cache for future use.
 
 **Disabling Cache**
 
-If you need to bypass the cache and always make a fresh API call, you can use the withoutCache method:
+If you need to bypass the cache and always make a fresh API call, you can use the `withoutCache` method:
 
 ```php
 $translatedText = $client->textTranslation('Hello, world!')
@@ -152,7 +203,7 @@ $translatedText = $client->textTranslation('Hello, world!')
 
 **Customizing Cache Behavior**
 
-The caching mechanism uses the Translation model to store the translated texts. The cache is controlled by the enable_translation_cache option in the configuration file (config/laravel-deepl.php), which is set to true by default. You can disable caching globally by setting this option to false:
+The caching mechanism uses the Translation model to store the translated texts. The cache is controlled by the enable_translation_cache option in the configuration file (`config/laravel-deepl.php`), which is set to `true` by default. You can disable caching globally by setting this option to `false`:
 
 ```php
 // config/laravel-deepl.php
@@ -172,7 +223,7 @@ Disabling this option means that every translation request will result in an API
 - **Cost Savings:** Helps to minimize the number of API calls, reducing potential costs.
 - **Flexibility:** Easily bypass or disable the cache when needed for fresh translations.
 
-The caching feature is a powerful tool for optimizing your application’s localization workflow, ensuring that translations are both fast and cost-effective.
+The caching feature is a powerful tool for optimizing your application’s localization workflow, ensuring that **translations are both fast and cost-effective**.
 
 ### Document Translation
 
@@ -250,21 +301,24 @@ This command will display the number of characters translated in the current bil
 
 ## Translating Localization Files
 
-The package includes a convenient Artisan command for translating Laravel localization files using the DeepL API. This allows you to quickly translate your application's language files from one language to another.
+The package includes a convenient Artisan command for translating Laravel localization files using the DeepL API. This allows you to quickly translate your application’s language files from one language to another. **However, it’s always important to review the generated translations and verify their correctness. Human oversight is crucial to ensure that translations are accurate, appropriate, and contextually relevant for your application.**
 
-### Command Syntax
+### Translating a Single Localization File
+
+#### Command Syntax
 
 You can use the command as follows:
 
 ```bash
-php artisan deepl:translate {file} --sourceLang=en --targetLang=cs
+php artisan deepl:translate {file} --sourceLang=en --targetLang=cs [--with-pint]
 ```
 
 - `file`: The path to the localization file you wish to translate
 - `--sourceLang`: The source language code (default is en)
 - `--targetLang`: The target language code (default is cs)
+- `--with-pint`: (Optional) If provided, the command will run Pint (a code formatter) after translation, but only in the local environment.
 
-### Example
+#### Example
 
 To translate a file from English to Czech, you can run:
 
@@ -272,22 +326,178 @@ To translate a file from English to Czech, you can run:
 php artisan deepl:translate resources/lang/en/messages.php --sourceLang=en --targetLang=cs
 ```
 
-This will create a translated file at resources/lang/cs/messages.php, preserving the structure and formatting of the original file.
+This will create a translated file at `resources/lang/cs/messages.php`, preserving the structure and formatting of the original file.
+
+### Translating Entire Localization Folders
+
+#### Command Syntax
+
+To translate all localization files within a folder (including subdirectories), use the following command:
+
+```bash
+php artisan deepl:translate-folder {folder} --sourceLang=en --targetLang=cs [--with-pint]
+```
+
+- `folder`: The path to the folder containing localization files to translate.
+- `--sourceLang`: The source language code (default is en).
+- `--targetLang`: The target language code (default is cs).
+- `--with-pint`: (Optional) If provided, the command will run Pint (a code formatter) after translation, but only in the local environment.
+
+#### Example
+
+To translate all files in the English localization folder to Czech, run:
+
+```bash
+php artisan deepl:translate-folder resources/lang/en --sourceLang=en --targetLang=cs
+```
+
+This command will recursively traverse all files and subdirectories within `resources/lang/en`, translating each file and saving the translated versions in the corresponding target language directory (e.g., `resources/lang/cs`).
 
 ### Handling JSON and PHP Files
 
-The command supports both JSON and PHP localization files. It will automatically detect the file type based on the file extension and handle the translation appropriately.
+Both commands support both JSON and PHP localization files. They will automatically detect the file type based on the file extension and handle the translation appropriately.
 
 - **For JSON files:** The translations are saved in JSON format, with keys and values preserved
 - **For PHP files:** The translations are saved in PHP array syntax, with keys and values maintained
 
+#### Example of Content Before and After Translation (JSON File)
+
+**Original File** (`resources/lang/en/messages.json`):
+
+```json
+{
+    "welcome": "Welcome to our application!",
+    "user": {
+        "profile": "Your profile",
+        "settings": "Account settings"
+    },
+    "greeting": "Hello, :name!"
+}
+```
+
+**Translated File** (`resources/lang/cs/messages.json`):
+
+```json
+{
+    "welcome": "Vítejte v naší aplikaci!",
+    "user": {
+        "profile": "Váš profil",
+        "settings": "Nastavení účtu"
+    },
+    "greeting": "Ahoj, :name!"
+}
+```
+
+#### Example of Content Before and After Translation (PHP File)
+
+**Original File** (`resources/lang/en/messages.php`):
+
+```php
+<?php
+
+return [
+    'welcome' => 'Welcome to our application!',
+    'user' => [
+        'profile' => 'Your profile',
+        'settings' => 'Account settings',
+    ],
+    'greeting' => 'Hello, :name!',
+];
+```
+
+**Translated File** (`resources/lang/cs/messages.php`):
+
+```php  
+<?php
+
+return [
+    'welcome' => 'Vítejte v naší aplikaci!',
+    'user' => [
+        'profile' => 'Váš profil',
+        'settings' => 'Nastavení účtu',
+    ],
+    'greeting' => 'Ahoj, :name!',
+];
+```
+
+### Handling Existing Translations
+
+When translating localization files, the commands are designed to be efficient and avoid overwriting existing translations. **If a key already exists in the target localization file, the command will skip translating that key.** This means that only keys that are not present in the target file will be translated and added.
+
+This behavior is particularly useful when you have previously translated keys or when you want to update your localization files incrementally. By skipping existing keys, the command ensures that your existing translations remain untouched, and only new or missing keys are added.
+
+#### Example
+
+Suppose you have a target localization file that already contains some translations.
+
+**Existing Target File** (`resources/lang/cs/messages.php`):
+
+```php
+<?php
+
+return [
+    'welcome' => 'Vítejte v naší aplikaci!',
+    // The 'user' key is missing
+    'greeting' => 'Ahoj, :name!',
+];
+```
+
+If you run the translation command:
+
+```bash
+php artisan deepl:translate resources/lang/en/messages.php --sourceLang=en --targetLang=cs
+```
+
+The command will detect that the keys `welcome` and `greeting` already exist in the target file and will skip translating them. It will only translate and add the missing `user` key.
+
+**Updated Target File** (`resources/lang/cs/messages.php`):
+
+```php
+<?php
+
+return [
+    'welcome' => 'Vítejte v naší aplikaci!',
+    'user' => [
+        'profile' => 'Váš profil',
+        'settings' => 'Nastavení účtu',
+    ],
+    'greeting' => 'Ahoj, :name!',
+];
+```
+
+In this way, the command preserves your existing translations and focuses on filling in any gaps with new translations.
+
+```php
+
 ### Placeholders
 
-The command is smart enough to handle placeholders (e.g., :attribute) within your localization strings. It ensures that these placeholders remain unchanged during the translation process, preserving the integrity of your application.
+The command is smart enough to handle placeholders (e.g., `:attribute`) within your localization strings. It ensures that these placeholders remain unchanged during the translation process, preserving the integrity of your application.
 
 ### Directory Creation
 
 If the target directory does not exist, the command will automatically create it, ensuring that the translated file is saved in the correct location.
+
+### Running Pint Code Formatter
+
+Both commands (`deepl:translate` and `deepl:translate-folder`) support the `--with-pint` option, which allows you to run Pint (a PHP code formatter) after the translation is complete.
+
+Pint will only run if your application is in the local environment. This prevents unintended code formatting changes in production or other environments.
+
+**Note:** Before using the `--with-pint` option, make sure that you have Pint installed in your project. Pint is typically installed as a development dependency via Composer. You can install it using the following command:
+
+```bash
+composer require laravel/pint --dev
+```
+
+If Pint is not installed, the command will fail when attempting to run Pint. Ensuring that Pint is installed will allow the code formatter to run successfully after translation.
+
+#### Example
+
+To translate all files in the English localization folder to Czech and run Pint after translation, use:
+
+```bash
+php artisan deepl:translate-folder resources/lang/en --targetLang=cs --with-pint
+```
 
 ## Helpers
 
