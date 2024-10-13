@@ -467,8 +467,6 @@ return [
 
 In this way, the command preserves your existing translations and focuses on filling in any gaps with new translations.
 
-```php
-
 ### Placeholders
 
 The command is smart enough to handle placeholders (e.g., `:attribute`) within your localization strings. It ensures that these placeholders remain unchanged during the translation process, preserving the integrity of your application.
