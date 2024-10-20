@@ -5,6 +5,30 @@
 [![GitHub Issues](https://img.shields.io/github/issues/PavelZanek/laravel-deepl.svg?style=flat-square)](https://github.com/PavelZanek/laravel-deepl/issues)
 [![License](https://img.shields.io/github/license/PavelZanek/laravel-deepl.svg?style=flat-square)](https://github.com/PavelZanek/laravel-deepl/blob/main/LICENSE.md)
 
+## Table of Contents
+
+- [Introduction](#introduction)
+- [Requirements](#requirements)
+- [Installation](#installation)
+- [Usage](#usage)
+  - [Text Translation](#text-translation)
+  - [Document Translation](#document-translation)
+  - [Glossary Management](#glossary-management)
+  - [Language Support](#language-support)
+  - [Usage Limits](#usage-limits)
+- [Translating Localization Files](#translating-localization-files)
+- [On-the-Fly Translation Setup](#on-the-fly-translation-setup)
+- [Helpers](#helpers)
+- [Additional Resources](#additional-resources)
+- [Testing](#testing)
+- [Linting](#linting)
+- [Changelog](#changelog)
+- [Contributing](#contributing)
+- [Security](#security)
+- [License](#license)
+- [Support the Developer](#support-the-developer)
+- [About the Developer](#about-the-developer)
+
 ## Introduction
 
 Laravel Deepl is a Laravel package that serves as a wrapper for the official [DeepL PHP client](https://github.com/DeepLcom/deepl-php), enhancing it with additional features such as caching and chainable translation methods. This package leverages the robustness of the official client while providing a more Laravel-centric interface. For comprehensive details about the DeepL API, including available endpoints and parameters, please refer to the [DeepL API Documentation](https://developers.deepl.com/docs).
