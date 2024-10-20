@@ -3,6 +3,7 @@
 use GuzzleHttp\Client;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
+use Illuminate\Support\Facades\Config;
 use PavelZanek\LaravelDeepl\DeeplClient;
 
 /*
@@ -46,14 +47,22 @@ uses(
 |
 */
 
+beforeAll(function () {
+    // Set the authKey configuration for all tests
+    Config::set('laravel-deepl.api_key', 'test_auth_key');
+});
+
+/**
+ * Helper function to create a DeeplClient with mocked responses.
+ */
 function createDeeplClientWithMockedResponse(array $mockedResponses): DeeplClient
 {
     $mock = new MockHandler($mockedResponses);
     $handlerStack = HandlerStack::create($mock);
     $client = new Client(['handler' => $handlerStack]);
 
-    $deeplClient = new DeeplClient;
-    $deeplClient->setClient($client);
+    // Instantiate the DeeplClient with authKey and mocked client
+    $deeplClient = new DeeplClient('test_auth_key', ['http_client' => $client]);
 
     return $deeplClient;
 }

@@ -45,6 +45,17 @@ class TranslateLangFolderCommand extends Command
             return self::FAILURE;
         }
 
+        /** @var string $folderPath */
+        $folderPath = realpath($folderPath);
+        $baseLangPath = realpath(lang_path());
+
+        // Skip if the provided folder is the root lang folder
+        if ($folderPath === $baseLangPath) {
+            $this->warn("Skipping translation for the root '{$baseLangPath}' folder. Please specify a subfolder, like 'lang/en'.");
+
+            return self::SUCCESS;
+        }
+
         try {
             $this->translationService->translateFolder($folderPath, $sourceLang, $targetLang);
 

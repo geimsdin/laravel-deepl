@@ -17,9 +17,17 @@ class LaravelDeeplServiceProvider extends ServiceProvider
     {
         $this->mergeConfigFrom(__DIR__.'/../config/laravel-deepl.php', 'laravel-deepl');
 
-        //        $this->app->singleton(DeeplClient::class, function ($app) {
-        //            return new DeeplClient();
-        //        });
+        $this->app->singleton(DeeplClient::class, function ($app) {
+            /** @var string $authKey */
+            $authKey = config('laravel-deepl.api_key');
+
+            return new DeeplClient($authKey, [
+                'timeout' => config('laravel-deepl.timeout'),
+                'max_retries' => config('laravel-deepl.retry_on_failures'),
+            ]);
+        });
+
+        $this->app->alias(DeeplClient::class, 'deepl.translator');
     }
 
     /**
@@ -27,7 +35,7 @@ class LaravelDeeplServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        AboutCommand::add('Laravel Deepl', fn () => ['Version' => '0.2.0']);
+        AboutCommand::add('Laravel Deepl', fn () => ['Version' => '1.0.0']);
 
         $this->publishes([
             __DIR__.'/../config/laravel-deepl.php' => config_path('laravel-deepl.php'),

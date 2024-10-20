@@ -1,5 +1,6 @@
 <?php
 
+use DeepL\TextResult;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;
@@ -10,19 +11,17 @@ use Symfony\Component\Console\Exception\InvalidOptionException;
 it('can translate all language files in a folder using TranslateFolderCommand', function () {
     // Set up a mock DeeplClient
     $deeplClientMock = Mockery::mock(DeeplClient::class);
-    $deeplClientMock->shouldReceive('textTranslation')
-        ->andReturnSelf();
-    $deeplClientMock->shouldReceive('sourceLang')
-        ->andReturnSelf();
-    $deeplClientMock->shouldReceive('targetLang')
-        ->andReturnSelf();
-    $deeplClientMock->shouldReceive('getTranslation')
-        ->andReturn('Translated text');
+    $deeplClientMock->shouldReceive('translateText')
+        ->andReturn(new TextResult(
+            text: 'Translated text',
+            detectedSourceLang: 'en',
+            billedCharacters: 10,
+        ));
 
     $this->app->instance(DeeplClient::class, $deeplClientMock);
 
     // Ensure the source directory exists
-    $sourceLangDir = resource_path('lang/en');
+    $sourceLangDir = lang_path('en');
     if (! File::exists($sourceLangDir)) {
         File::makeDirectory($sourceLangDir, 0755, true);
     }
@@ -52,7 +51,7 @@ it('can translate all language files in a folder using TranslateFolderCommand', 
     expect($exitCode)->toBe(Command::SUCCESS);
 
     // Verify the translated files were created
-    $targetLangDir = resource_path('lang/cs');
+    $targetLangDir = lang_path('cs');
 
     // Check PHP file
     $translatedPhpFilePath = $targetLangDir.'/test.php';
@@ -83,7 +82,7 @@ it('can translate all language files in a folder using TranslateFolderCommand', 
 it('fails if the folder does not exist', function () {
     // Run the command with a non-existing folder and check the return value
     $exitCode = Artisan::call('deepl:translate-folder', [
-        'folder' => resource_path('lang/non_existent'),
+        'folder' => lang_path('non_existent'),
         '--sourceLang' => 'en',
         '--targetLang' => 'cs',
     ]);
@@ -94,11 +93,11 @@ it('fails if folderPath, sourceLang, or targetLang is not a string', function ()
     // Set up an array of invalid inputs to test
     $invalidInputs = [
         ['folder' => null, '--sourceLang' => 'en', '--targetLang' => 'cs'],
-        ['folder' => resource_path('lang/en'), '--sourceLang' => null, '--targetLang' => 'cs'],
-        ['folder' => resource_path('lang/en'), '--sourceLang' => 'en', '--targetLang' => null],
+        ['folder' => lang_path('en'), '--sourceLang' => null, '--targetLang' => 'cs'],
+        ['folder' => lang_path('en'), '--sourceLang' => 'en', '--targetLang' => null],
         ['folder' => 123, '--sourceLang' => 'en', '--targetLang' => 'cs'], // folderPath is not a string
-        ['folder' => resource_path('lang/en'), '--sourceLang' => 123, '--targetLang' => 'cs'], // sourceLang is not a string
-        ['folder' => resource_path('lang/en'), '--sourceLang' => 'en', '--targetLang' => 123], // targetLang is not a string
+        ['folder' => lang_path('en'), '--sourceLang' => 123, '--targetLang' => 'cs'], // sourceLang is not a string
+        ['folder' => lang_path('en'), '--sourceLang' => 'en', '--targetLang' => 123], // targetLang is not a string
     ];
 
     foreach ($invalidInputs as $input) {
@@ -113,7 +112,7 @@ it('fails if unrecognized arguments are provided', function () {
 
     // Attempt to run the command with an unrecognized argument
     Artisan::call('deepl:translate-folder', [
-        'folder' => resource_path('lang/en'),
+        'folder' => lang_path('en'),
         '--sourceLang' => 'en',
         '--targetLang' => 'cs',
         'extraArgument' => 'unexpected',  // Unrecognized argument
@@ -125,7 +124,7 @@ it('fails if unrecognized options are provided', function () {
 
     // Attempt to run the command with an unrecognized option
     Artisan::call('deepl:translate-folder', [
-        'folder' => resource_path('lang/en'),
+        'folder' => lang_path('en'),
         '--sourceLang' => 'en',
         '--targetLang' => 'cs',
         '--extraOption' => 'unexpected',  // Unrecognized option
@@ -138,14 +137,12 @@ it('can run with --with-pint option in local environment', function () {
 
     // Mock the DeeplClient
     $deeplClientMock = Mockery::mock(DeeplClient::class);
-    $deeplClientMock->shouldReceive('textTranslation')
-        ->andReturnSelf();
-    $deeplClientMock->shouldReceive('sourceLang')
-        ->andReturnSelf();
-    $deeplClientMock->shouldReceive('targetLang')
-        ->andReturnSelf();
-    $deeplClientMock->shouldReceive('getTranslation')
-        ->andReturn('Translated text');
+    $deeplClientMock->shouldReceive('translateText')
+        ->andReturn(new TextResult(
+            text: 'Translated text',
+            detectedSourceLang: 'en',
+            billedCharacters: 10,
+        ));
 
     $this->app->instance(DeeplClient::class, $deeplClientMock);
 
@@ -157,7 +154,7 @@ it('can run with --with-pint option in local environment', function () {
     $processMock->shouldReceive('getOutput')->andReturn('Pint output');
 
     // Ensure the source directory exists
-    $sourceLangDir = resource_path('lang/en');
+    $sourceLangDir = lang_path('en');
     if (! File::exists($sourceLangDir)) {
         File::makeDirectory($sourceLangDir, 0755, true);
     }

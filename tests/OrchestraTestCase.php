@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace PavelZanek\LaravelDeepl\Tests;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Config;
 use Orchestra\Testbench\TestCase;
 use PavelZanek\LaravelDeepl\LaravelDeeplServiceProvider;
 
@@ -16,7 +17,8 @@ class OrchestraTestCase extends TestCase
     {
         parent::setUp();
 
-        // Spustí všechny migrace
+        Config::set('laravel-deepl.api_key', 'test_auth_key');
+
         $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
     }
 
@@ -35,6 +37,8 @@ class OrchestraTestCase extends TestCase
             'database' => ':memory:',
             'prefix' => '',
         ]);
+
+        $app['config']->set('laravel-deepl.api_key', 'test_auth_key');
     }
 
     /**

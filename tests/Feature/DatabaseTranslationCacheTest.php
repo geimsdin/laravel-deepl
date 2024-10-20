@@ -1,83 +1,154 @@
 <?php
 
+use DeepL\TextResult;
+use GuzzleHttp\Client;
+use GuzzleHttp\Handler\MockHandler;
+use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Psr7\Response;
+use PavelZanek\LaravelDeepl\DeeplClient;
 use PavelZanek\LaravelDeepl\Enums\V2\SourceLanguage;
 use PavelZanek\LaravelDeepl\Enums\V2\TargetLanguage;
-use PavelZanek\LaravelDeepl\Models\Translation;
+use PavelZanek\LaravelDeepl\Facades\Deepl;
+use PavelZanek\LaravelDeepl\Models\TranslationCache;
 
 it('stores translation in the database', function () {
+    // Enable the translation cache
+    config(['laravel-deepl.enable_translation_cache' => true]);
+
+    // Create a DeeplClient with mocked responses
     $deeplClient = createDeeplClientWithMockedResponse([
-        new Response(200, [], json_encode(['translations' => [['text' => 'Hallo']]])),
+        new Response(200, [], json_encode([
+            'translations' => [
+                [
+                    'detected_source_language' => SourceLanguage::ENGLISH->value,
+                    'text' => 'Hallo',
+                    'billed_characters' => 5,
+                ],
+            ],
+        ])),
     ]);
 
-    expect(Translation::count())->toBe(0);
+    // Bind the DeeplClient instance to 'deepl.translator' in the container
+    $this->app->instance('deepl.translator', $deeplClient);
 
-    $result = $deeplClient->textTranslation('Hello')
+    // Ensure the Translation table is empty
+    expect(TranslationCache::count())->toBe(0);
+
+    // Perform the translation using the Deepl facade
+    $result = Deepl::translateText()
+        ->texts('Hello')
         ->sourceLang(SourceLanguage::ENGLISH->value)
         ->targetLang(TargetLanguage::GERMAN->value)
-        ->getTranslation();
+        ->translate();
 
-    expect($result)->toBe('Hallo')
-        ->and(Translation::count())->toBe(1)
-        ->and(Translation::first())->text->toBe('Hello')
-        ->and(Translation::first())->translated_text->toBe('Hallo')
-        ->and(Translation::first())->source_lang->toBe(SourceLanguage::ENGLISH->value)
-        ->and(Translation::first())->target_lang->toBe(TargetLanguage::GERMAN->value);
+    // Assert that the result is as expected
+    expect($result)->toBeInstanceOf(TextResult::class)
+        ->and($result->text)->toBe('Hallo')
+        // Assert that the translation was stored in the database
+        ->and(TranslationCache::count())->toBe(1)
+        ->and(TranslationCache::first()->text)->toBe('Hello')
+        ->and(TranslationCache::first()->translated_text)->toBe('Hallo')
+        ->and(TranslationCache::first()->source_lang)->toBe(SourceLanguage::ENGLISH->value)
+        ->and(TranslationCache::first()->target_lang)->toBe(TargetLanguage::GERMAN->value);
 });
 
 it('retrieves translation from the database if it exists', function () {
-    // Insert a translation manually into the database
-    Translation::create([
+    // Enable the translation cache
+    config(['laravel-deepl.enable_translation_cache' => true]);
+
+    // Insert a translation manually into the database with correct text_hash
+    TranslationCache::create([
         'text' => 'Hello',
-        'translated_text' => 'Hallo',
-        'source_lang' => $sourceLang = SourceLanguage::ENGLISH->value,
-        'target_lang' => TargetLanguage::GERMAN->value,
-        'options' => json_encode(['source_lang' => $sourceLang]),
-    ]);
-
-    // Ensure there is only one record
-    expect(Translation::count())->toBe(1);
-
-    // Create a mock client that should not be called
-    $deeplClient = createDeeplClientWithMockedResponse([
-        // We don't expect this to be called
-        new Response(500),
-    ]);
-
-    // Perform translation
-    $result = $deeplClient->textTranslation('Hello')
-        ->sourceLang(SourceLanguage::ENGLISH->value)
-        ->targetLang(TargetLanguage::GERMAN->value)
-        ->getTranslation();
-
-    // Ensure no additional records were added
-    expect($result)->toBe('Hallo')
-        ->and(Translation::count())->toBe(1);
-});
-
-it('bypasses cache when withoutCache is used', function () {
-    // Insert a translation manually into the database
-    Translation::create([
-        'text' => 'Hello',
+        'text_hash' => hash('sha256', 'Hello'), // Correct hash function
         'translated_text' => 'Hallo',
         'source_lang' => SourceLanguage::ENGLISH->value,
         'target_lang' => TargetLanguage::GERMAN->value,
         'options' => json_encode([]),
+        'options_hash' => md5(json_encode([])),
     ]);
 
-    // Create a mock client with a different response
-    $deeplClient = createDeeplClientWithMockedResponse([
-        new Response(200, [], json_encode(['translations' => [['text' => 'Hallo Welt']]])),
+    // Ensure there is only one record
+    expect(TranslationCache::count())->toBe(1);
+
+    // Create a partial mock for the DeeplClient
+    $deeplClientMock = Mockery::mock(DeeplClient::class)->makePartial();
+
+    // Set expectation that translateText() is not called because translation is in cache
+    // However, DeeplClient::translateText() is used internally for cache lookup
+    // So instead, we allow it to be called and return the cached result
+    $deeplClientMock->shouldReceive('translateText')
+        ->once()
+        ->with('Hello', SourceLanguage::ENGLISH->value, TargetLanguage::GERMAN->value, [], true)
+        ->andReturn(new TextResult('Hallo', SourceLanguage::ENGLISH->value, 5));
+
+    // Bind the DeeplClient mock to 'deepl.translator' in the container
+    $this->app->instance('deepl.translator', $deeplClientMock);
+
+    // Perform translation using the Deepl facade
+    $result = Deepl::translateText()
+        ->texts('Hello')
+        ->sourceLang(SourceLanguage::ENGLISH->value)
+        ->targetLang(TargetLanguage::GERMAN->value)
+        ->translate();
+
+    // Ensure the translation was retrieved from the database, not the API
+    expect($result)->toBeInstanceOf(TextResult::class)
+        ->and($result->text)->toBe('Hallo')
+        ->and(TranslationCache::count())->toBe(1);
+});
+
+it('bypasses cache when withoutCache is used', function () {
+    // Enable the translation cache
+    config(['laravel-deepl.enable_translation_cache' => true]);
+
+    // Insert a translation manually into the database with correct text_hash and options_hash
+    TranslationCache::create([
+        'text' => 'Hello',
+        'text_hash' => hash('sha256', 'Hello'), // Correct hash function
+        'translated_text' => 'Hallo',
+        'source_lang' => SourceLanguage::ENGLISH->value,
+        'target_lang' => TargetLanguage::GERMAN->value,
+        'options' => json_encode([]),
+        'options_hash' => hash('sha256', json_encode([])), // Ensure consistent hashing
     ]);
 
-    // Perform translation with cache disabled
-    $result = $deeplClient->textTranslation('Hello')
+    // Ensure there is only one record
+    expect(TranslationCache::count())->toBe(1);
+
+    // Set up a Guzzle mock handler with a predefined response for the API call
+    $mockHandler = new MockHandler([
+        new Response(200, [], json_encode([
+            'translations' => [
+                [
+                    'detected_source_language' => SourceLanguage::ENGLISH->value,
+                    'text' => 'Hallo Welt',
+                    'billed_characters' => 5,
+                ],
+            ],
+        ])),
+    ]);
+
+    $handlerStack = HandlerStack::create($mockHandler);
+    $mockHttpClient = new Client(['handler' => $handlerStack]);
+
+    // Create a DeeplClient instance with the mocked HTTP client
+    $deeplClient = new DeeplClient(config('laravel-deepl.api_key'), [
+        'http_client' => $mockHttpClient,
+    ]);
+
+    // Bind the DeeplClient instance to 'deepl.translator' in the container
+    $this->app->instance('deepl.translator', $deeplClient);
+
+    // Perform translation with cache disabled using the Deepl facade
+    $result = Deepl::translateText()
+        ->texts('Hello')
         ->sourceLang(SourceLanguage::ENGLISH->value)
         ->targetLang(TargetLanguage::GERMAN->value)
         ->withoutCache()
-        ->getTranslation();
+        ->translate();
 
-    // Ensure a new translation was not added to the database
-    expect($result)->toBe('Hallo Welt')
-        ->and(Translation::count())->toBe(1);
+    // Ensure that the result is from the API, not the cached one
+    expect($result)->toBeInstanceOf(TextResult::class)
+        ->and($result->text)->toBe('Hallo Welt')
+        ->and(TranslationCache::count())->toBe(1); // No new translation added
 });

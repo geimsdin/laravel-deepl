@@ -6,16 +6,14 @@ use Illuminate\Support\Facades\Facade;
 use PavelZanek\LaravelDeepl\DeeplClient;
 
 /**
- * @method static \PavelZanek\LaravelDeepl\Clients\V2\DeeplTextTranslationClient textTranslation(string|array $text = '')
- * @method static \PavelZanek\LaravelDeepl\Clients\V2\DeeplDocumentTranslationClient documentTranslation()
- * @method static \PavelZanek\LaravelDeepl\Clients\V2\DeeplGlossaryClient glossary()
- * @method static \PavelZanek\LaravelDeepl\Clients\V2\DeeplLanguagesClient languages()
- * @method static \PavelZanek\LaravelDeepl\Clients\V2\DeeplUsageClient usage()
+ * @method static \PavelZanek\LaravelDeepl\Services\Builders\TranslationBuilder translateText(string|array|null $texts = null, string|null $sourceLang = null, string|null $targetLang = null, array $options = [], bool|null $useCache = null)
+ *
+ * @see DeeplClient
  */
 class Deepl extends Facade
 {
     protected static function getFacadeAccessor(): string
     {
-        return DeeplClient::class;
+        return 'deepl.translator';
     }
 }

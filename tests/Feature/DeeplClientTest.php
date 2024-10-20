@@ -1,131 +1,166 @@
 <?php
 
-use GuzzleHttp\Client;
-use GuzzleHttp\Handler\MockHandler;
-use GuzzleHttp\HandlerStack;
+use DeepL\GlossaryEntries;
+use DeepL\Language;
+use DeepL\TextResult;
 use GuzzleHttp\Psr7\Response;
-use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\File;
-use PavelZanek\LaravelDeepl\DeeplClient;
 use PavelZanek\LaravelDeepl\Enums\V2\Formality;
+use PavelZanek\LaravelDeepl\Enums\V2\PreserveFormatting;
 use PavelZanek\LaravelDeepl\Enums\V2\SourceLanguage;
+use PavelZanek\LaravelDeepl\Enums\V2\SplitSentences;
 use PavelZanek\LaravelDeepl\Enums\V2\TargetLanguage;
 use PavelZanek\LaravelDeepl\Facades\Deepl;
 
-//function createDeeplClientWithMockedResponse(array $mockedResponses): DeeplClient
-//{
-//    $mock = new MockHandler($mockedResponses);
-//    $handlerStack = HandlerStack::create($mock);
-//    $client = new Client(['handler' => $handlerStack]);
-//
-//    $deeplClient = new DeeplClient;
-//    $deeplClient->setClient($client);
-//
-//    return $deeplClient;
-//}
-
 it('can translate text using Deepl Client with all parameters', function () {
     $deeplClient = createDeeplClientWithMockedResponse([
-        new Response(200, [], json_encode(['translations' => [['text' => 'Hallo']]])),
+        new Response(200, [], json_encode([
+            'translations' => [
+                [
+                    'detected_source_language' => SourceLanguage::ENGLISH->value,
+                    'text' => 'Hallo',
+                    'billed_characters' => 5,
+                ],
+            ],
+        ])),
     ]);
 
-    $result = $deeplClient->textTranslation('Hello')
+    $result = $deeplClient->translateText()
+        ->texts('Hello')
         ->sourceLang(SourceLanguage::ENGLISH->value)
         ->targetLang(TargetLanguage::GERMAN->value)
         ->formality(Formality::PREFER_LESS->value)
-        ->preserveFormatting()
-        ->splitSentences()
-        ->context('Greeting')
+        ->preserveFormatting(PreserveFormatting::ENABLED->value)
+        ->splitSentences('1')
         ->glossary('example-glossary-id')
         ->withoutCache()
-        ->getTranslation();
+        ->translate();
 
-    expect($result)->toBe('Hallo');
+    expect($result)->toBeInstanceOf(TextResult::class)
+        ->and($result->text)->toBe('Hallo')
+        ->and($result->detectedSourceLang)->toBe(SourceLanguage::ENGLISH->value)
+        ->and($result->billedCharacters)->toBe(5);
 });
 
 it('can translate text using Deepl Facade with all parameters', function () {
-    Deepl::shouldReceive('textTranslation')->once()->with('Hello')->andReturnSelf();
-    Deepl::shouldReceive('sourceLang')->once()->with(SourceLanguage::ENGLISH->value)->andReturnSelf();
-    Deepl::shouldReceive('targetLang')->once()->with(TargetLanguage::GERMAN->value)->andReturnSelf();
-    Deepl::shouldReceive('formality')->once()->with(Formality::PREFER_LESS->value)->andReturnSelf();
-    Deepl::shouldReceive('preserveFormatting')->once()->andReturnSelf();
-    Deepl::shouldReceive('splitSentences')->once()->andReturnSelf();
-    Deepl::shouldReceive('context')->once()->with('Greeting')->andReturnSelf();
-    Deepl::shouldReceive('glossary')->once()->with('example-glossary-id')->andReturnSelf();
-    Deepl::shouldReceive('getTranslation')->once()->andReturn('Hallo');
+    // Create a DeeplClient with mocked responses
+    $deeplClient = createDeeplClientWithMockedResponse([
+        new Response(200, [], json_encode([
+            'translations' => [
+                [
+                    'detected_source_language' => SourceLanguage::ENGLISH->value,
+                    'text' => 'Hallo',
+                    'billed_characters' => 5,
+                ],
+            ],
+        ])),
+    ]);
 
-    $result = Deepl::textTranslation('Hello')
+    // Bind the DeeplClient instance to 'deepl.translator' in the container
+    $this->app->instance('deepl.translator', $deeplClient);
+
+    // Now when the Deepl facade resolves 'deepl.translator', it will get $deeplClient
+    $result = Deepl::translateText()
+        ->texts('Hello')
         ->sourceLang(SourceLanguage::ENGLISH->value)
         ->targetLang(TargetLanguage::GERMAN->value)
         ->formality(Formality::PREFER_LESS->value)
-        ->preserveFormatting()
-        ->splitSentences()
-        ->context('Greeting')
+        ->preserveFormatting(PreserveFormatting::ENABLED->value)
+        ->splitSentences(SplitSentences::DEFAULT->value)
         ->glossary('example-glossary-id')
-        ->getTranslation();
+        ->withoutCache()
+        ->translate();
 
-    expect($result)->toBe('Hallo');
+    expect($result)
+        ->toBeInstanceOf(TextResult::class)
+        ->and($result->text)->toBe('Hallo')
+        ->and($result->detectedSourceLang)->toBe(SourceLanguage::ENGLISH->value);
 });
-
-it('throws an InvalidArgumentException for unsupported API version', function () {
-    Config::set('laravel-deepl.api_version', 'v999');
-
-    expect(fn () => new DeeplClient)
-        ->toThrow(InvalidArgumentException::class, 'Unsupported API version: v999');
-})->skip('Skipping due to issues with exception handling in the test framework');
-
-it('throws an InvalidArgumentException for unsupported API version - Facade', function () {
-    Config::set('laravel-deepl.api_version', 'v999');
-
-    expect(fn () => Deepl::textTranslation('Hello')->targetLang(TargetLanguage::GERMAN->value)->getTranslation())
-        ->toThrow(InvalidArgumentException::class, 'Unsupported API version: v999');
-})->skip('Skipping due to issues with exception handling in the test framework');
 
 it('can retrieve source languages using Deepl Client', function () {
     $deeplClient = createDeeplClientWithMockedResponse([
-        new Response(200, [], json_encode([['language' => 'EN'], ['language' => 'DE'], ['language' => 'FR']])),
+        new Response(200, [], json_encode([
+            ['language' => 'EN', 'name' => 'English'],
+            ['language' => 'DE', 'name' => 'German'],
+            ['language' => 'FR', 'name' => 'French'],
+        ])),
     ]);
 
-    $sourceLanguages = $deeplClient->languages()->getSourceLanguages();
+    $sourceLanguages = $deeplClient->getSourceLanguages();
 
-    expect($sourceLanguages)->toBe([['language' => 'EN'], ['language' => 'DE'], ['language' => 'FR']]);
+    expect($sourceLanguages)->toBeArray()->toHaveCount(3)
+        ->and($sourceLanguages[0]->code)->toBe('EN')
+        ->and($sourceLanguages[1]->code)->toBe('DE')
+        ->and($sourceLanguages[2]->code)->toBe('FR');
 });
 
 it('can retrieve source languages using Deepl Facade', function () {
-    Deepl::shouldReceive('languages')->once()->andReturnSelf();
-    Deepl::shouldReceive('getSourceLanguages')->once()->andReturn(['EN', 'DE', 'FR']);
+    Deepl::shouldReceive('getSourceLanguages')->once()->andReturn([
+        new Language(name: 'English', code: 'EN', supportsFormality: true),
+        new Language(name: 'German', code: 'DE', supportsFormality: true),
+        new Language(name: 'French', code: 'FR', supportsFormality: true),
+    ]);
 
-    $sourceLanguages = Deepl::languages()->getSourceLanguages();
+    $sourceLanguages = Deepl::getSourceLanguages();
 
-    expect($sourceLanguages)->toBe(['EN', 'DE', 'FR']);
+    expect($sourceLanguages)->toBeArray()->toHaveCount(3)
+        ->and($sourceLanguages[0]->code)->toBe('EN')
+        ->and($sourceLanguages[1]->code)->toBe('DE')
+        ->and($sourceLanguages[2]->code)->toBe('FR');
 });
 
 it('can retrieve usage data using Deepl Client', function () {
     $deeplClient = createDeeplClientWithMockedResponse([
-        new Response(200, [], json_encode(['character_count' => 12345, 'character_limit' => 500000])),
+        new Response(200, [], json_encode([
+            'character_count' => 12345,
+            'character_limit' => 500000,
+        ])),
     ]);
 
-    $usage = $deeplClient->usage()->getUsage();
+    $usage = $deeplClient->getUsage();
 
-    expect($usage)->toMatchArray([
-        'character_count' => 12345,
-        'character_limit' => 500000,
+    expect($usage)->toBeInstanceOf(\DeepL\Usage::class)
+        ->and($usage->character->count)->toBe(12345)
+        ->and($usage->character->limit)->toBe(500000);
+});
+
+it('can retrieve usage data including documents using Deepl Client', function () {
+    $deeplClient = createDeeplClientWithMockedResponse([
+        new Response(200, [], json_encode([
+            'character_count' => 12345,
+            'character_limit' => 500000,
+            'document_count' => 10,
+            'document_limit' => 100,
+        ])),
     ]);
+
+    $usage = $deeplClient->getUsage();
+
+    expect($usage)->toBeInstanceOf(\DeepL\Usage::class)
+        ->and($usage->character->count)->toBe(12345)
+        ->and($usage->character->limit)->toBe(500000)
+        ->and($usage->document->count)->toBe(10)
+        ->and($usage->document->limit)->toBe(100);
 });
 
 it('can retrieve usage data using Deepl Facade', function () {
-    Deepl::shouldReceive('usage')->once()->andReturnSelf();
-    Deepl::shouldReceive('getUsage')->once()->andReturn([
-        'character_count' => 12345,
-        'character_limit' => 500000,
-    ]);
+    // Create a mock for UsageDetail
+    $usageDetailMock = Mockery::mock('DeepL\UsageDetail');
+    $usageDetailMock->count = 12345;
+    $usageDetailMock->limit = 500000;
 
-    $usage = Deepl::usage()->getUsage();
+    // Create a mock for Usage
+    $usageMock = Mockery::mock('DeepL\Usage');
+    $usageMock->character = $usageDetailMock;
 
-    expect($usage)->toMatchArray([
-        'character_count' => 12345,
-        'character_limit' => 500000,
-    ]);
+    // Mock the getUsage method to return our mocked Usage object
+    Deepl::shouldReceive('getUsage')->once()->andReturn($usageMock);
+
+    $usage = Deepl::getUsage();
+
+    expect($usage)->toBeInstanceOf(\DeepL\Usage::class)
+        ->and($usage->character->count)->toBe(12345)
+        ->and($usage->character->limit)->toBe(500000);
 });
 
 it('can create a glossary using Deepl Client', function () {
@@ -133,22 +168,30 @@ it('can create a glossary using Deepl Client', function () {
         new Response(200, [], json_encode([
             'glossary_id' => 'example-glossary-id',
             'name' => 'My Glossary',
-            'source_lang' => SourceLanguage::ENGLISH->value,
-            'target_lang' => TargetLanguage::GERMAN->value,
+            'ready' => true,
+            'source_lang' => 'EN',
+            'target_lang' => 'DE',
+            'creation_time' => '2022-01-01T12:00:00Z',
+            'entry_count' => 2,
         ])),
     ]);
 
-    $glossary = $deeplClient->glossary()->createGlossary(
+    // Create a GlossaryEntries object from your array
+    $entries = GlossaryEntries::fromEntries([
+        'hello' => 'hallo',
+        'world' => 'welt',
+    ]);
+
+    $glossary = $deeplClient->createGlossary(
         'My Glossary',
         SourceLanguage::ENGLISH->value,
         TargetLanguage::GERMAN->value,
-        ['hello' => 'hallo', 'world' => 'welt']
+        $entries
     );
 
-    expect($glossary)->toMatchArray([
-        'glossary_id' => 'example-glossary-id',
-        'name' => 'My Glossary',
-    ]);
+    expect($glossary)->toBeInstanceOf(\DeepL\GlossaryInfo::class)
+        ->and($glossary->glossaryId)->toBe('example-glossary-id')
+        ->and($glossary->name)->toBe('My Glossary');
 });
 
 it('can retrieve a glossary using Deepl Client', function () {
@@ -156,121 +199,140 @@ it('can retrieve a glossary using Deepl Client', function () {
         new Response(200, [], json_encode([
             'glossary_id' => 'example-glossary-id',
             'name' => 'My Glossary',
-            'source_lang' => SourceLanguage::ENGLISH->value,
-            'target_lang' => TargetLanguage::GERMAN->value,
+            'ready' => true,
+            'source_lang' => 'EN',
+            'target_lang' => 'DE',
             'creation_time' => '2022-01-01T12:00:00Z',
             'entry_count' => 2,
         ])),
     ]);
 
-    $glossary = $deeplClient->glossary()->getGlossary('example-glossary-id');
+    $glossary = $deeplClient->getGlossary('example-glossary-id');
 
-    expect($glossary)->toMatchArray([
-        'glossary_id' => 'example-glossary-id',
-        'name' => 'My Glossary',
-    ]);
+    expect($glossary)->toBeInstanceOf(\DeepL\GlossaryInfo::class)
+        ->and($glossary->glossaryId)->toBe('example-glossary-id')
+        ->and($glossary->name)->toBe('My Glossary');
 });
 
 it('can delete a glossary using Deepl Client', function () {
-    $deeplClient = createDeeplClientWithMockedResponse([new Response(204)]);
+    $deeplClient = createDeeplClientWithMockedResponse([
+        new Response(204),
+    ]);
 
-    $deleted = $deeplClient->glossary()->deleteGlossary('example-glossary-id');
+    $deeplClient->deleteGlossary('example-glossary-id');
 
-    expect($deleted)->toBeTrue();
+    // If no exception is thrown, assume success
+    expect(true)->toBeTrue();
 });
 
 it('can list glossaries using Deepl Client', function () {
     $deeplClient = createDeeplClientWithMockedResponse([
-        new Response(200, [], json_encode(['glossaries' => [
-            ['glossary_id' => 'glossary-1', 'name' => 'Glossary 1'],
-            ['glossary_id' => 'glossary-2', 'name' => 'Glossary 2'],
-        ]])),
+        new Response(200, [], json_encode([
+            'glossaries' => [
+                [
+                    'glossary_id' => 'glossary-1',
+                    'name' => 'Glossary 1',
+                    'ready' => true,
+                    'source_lang' => 'EN',
+                    'target_lang' => 'DE',
+                    'creation_time' => '2022-01-01T12:00:00Z',
+                    'entry_count' => 10,
+                ],
+                [
+                    'glossary_id' => 'glossary-2',
+                    'name' => 'Glossary 2',
+                    'ready' => true,
+                    'source_lang' => 'EN',
+                    'target_lang' => 'FR',
+                    'creation_time' => '2022-01-02T12:00:00Z',
+                    'entry_count' => 20,
+                ],
+            ],
+        ])),
     ]);
 
-    $glossaries = $deeplClient->glossary()->listGlossaries();
+    $glossaries = $deeplClient->listGlossaries();
 
-    expect($glossaries['glossaries'])->toBeArray()->toHaveCount(2)
-        ->and($glossaries['glossaries'][0]['glossary_id'])->toBe('glossary-1')
-        ->and($glossaries['glossaries'][1]['glossary_id'])->toBe('glossary-2');
+    expect($glossaries)->toBeArray()->toHaveCount(2)
+        ->and($glossaries[0]->glossaryId)->toBe('glossary-1')
+        ->and($glossaries[1]->glossaryId)->toBe('glossary-2');
 });
 
-it('can list language pairs supported by glossaries using Deepl Client', function () {
-    $deeplClient = createDeeplClientWithMockedResponse([
-        new Response(200, [], json_encode(['supported_languages' => [
-            ['source_lang' => 'de', 'target_lang' => 'en'],
-            ['source_lang' => 'de', 'target_lang' => 'es'],
-        ]])),
-    ]);
-
-    $languagePairs = $deeplClient->glossary()->listLanguagePairs();
-
-    expect($languagePairs['supported_languages'])->toBeArray()->toHaveCount(2)
-        ->and($languagePairs['supported_languages'][0]['target_lang'])->toBe('en')
-        ->and($languagePairs['supported_languages'][1]['target_lang'])->toBe('es');
-});
-
-it('can upload a document for translation using Deepl Client', function () {
+it('can upload and translate a document synchronously using Deepl Client', function () {
     // Create a temporary file to act as the document
     $tempFile = tempnam(sys_get_temp_dir(), 'test_document');
     file_put_contents($tempFile, 'This is a test document content.');
 
-    $mock = new MockHandler([
+    // Create a DeeplClient with mocked responses
+    $deeplClient = createDeeplClientWithMockedResponse([
+        // Response for document upload
         new Response(200, [], json_encode([
             'document_id' => 'example-document-id',
             'document_key' => 'example-document-key',
         ])),
+        // Response for document status (first check)
+        new Response(200, [], json_encode([
+            'status' => 'done',
+            'seconds_remaining' => 0,
+            'billed_characters' => 1234,
+        ])),
+        // Response for downloading the translated document
+        new Response(200, [], 'Translated document content'),
     ]);
 
-    $deeplClient = createDeeplClientWithMockedResponse([$mock]);
-    $documentClient = $deeplClient->documentTranslation();
-
-    $uploadResponse = $documentClient->uploadDocument(
+    // Perform synchronous document translation (method returns void)
+    $deeplClient->translateDocument(
         $tempFile,
-        TargetLanguage::GERMAN->value,
-        SourceLanguage::ENGLISH->value
+        $tempFile.'_translated',
+        SourceLanguage::ENGLISH->value,
+        TargetLanguage::GERMAN->value
     );
 
-    expect($uploadResponse)->toMatchArray([
-        'document_id' => 'example-document-id',
-        'document_key' => 'example-document-key',
-    ]);
+    // Verify that the translated file was created and contains the expected content
+    expect(file_exists($tempFile.'_translated'))->toBeTrue();
 
-    // Clean up the temporary file
+    $content = file_get_contents($tempFile.'_translated');
+    expect($content)->toBe('Translated document content');
+
+    // Clean up the temporary files
     File::delete($tempFile);
+    File::delete($tempFile.'_translated');
 });
 
 it('can check the status of a document translation using Deepl Client', function () {
-    $mock = new MockHandler([
+    $deeplClient = createDeeplClientWithMockedResponse([
         new Response(200, [], json_encode([
             'status' => 'done',
             'billed_characters' => 1234,
         ])),
     ]);
 
-    $deeplClient = createDeeplClientWithMockedResponse([$mock]);
-    $documentClient = $deeplClient->documentTranslation();
+    $documentHandle = new \DeepL\DocumentHandle('example-document-id', 'example-document-key');
 
-    $status = $documentClient->getDocumentStatus('example-document-id', 'example-document-key');
+    $status = $deeplClient->getDocumentStatus($documentHandle);
 
-    expect($status)->toMatchArray([
-        'status' => 'done',
-        'billed_characters' => 1234,
-    ]);
+    expect($status)->toBeInstanceOf(\DeepL\DocumentStatus::class)
+        ->and($status->status)->toBe('done')
+        ->and($status->billedCharacters)->toBe(1234);
 });
 
 it('can download a translated document using Deepl Client', function () {
-    $mock = new MockHandler([
+    $deeplClient = createDeeplClientWithMockedResponse([
         new Response(200, [], 'Translated document content'),
     ]);
 
-    $deeplClient = createDeeplClientWithMockedResponse([$mock]);
-    $documentClient = $deeplClient->documentTranslation();
+    $documentHandle = new \DeepL\DocumentHandle('example-document-id', 'example-document-key');
 
-    $translatedContent = $documentClient->downloadTranslatedDocument('example-document-id', 'example-document-key');
+    // Generate a temporary file path and delete the file
+    $outputFile = tempnam(sys_get_temp_dir(), 'translated_document');
+    File::delete($outputFile); // Ensure the file does not exist
 
-    // Check the actual content directly
-    $content = (string) $translatedContent;
+    $deeplClient->downloadDocument($documentHandle, $outputFile);
+
+    $content = file_get_contents($outputFile);
+
     expect($content)->toBe('Translated document content');
 
-    File::delete('example-document-id_translated.');
+    // Clean up the temporary file
+    File::delete($outputFile);
 });
