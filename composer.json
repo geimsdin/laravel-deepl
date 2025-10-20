@@ -1,5 +1,5 @@
 {
-    "name": "pavelzanek/laravel-deepl",
+    "name": "geimsdin/laravel-deepl",
     "description": "A Laravel package for integrating with the DeepL API.",
     "keywords": [
         "laravel",
@@ -10,9 +10,9 @@
     "license": "MIT",
     "authors": [
         {
-            "name": "Pavel Zaněk",
-            "email": "zanek.pavel@gmail.com",
-            "homepage": "https://www.pavelzanek.com/en",
+            "name": "Simone",
+            "email": "simone@unusualdope.com",
+            "homepage": "https://www.unusualdope.com",
             "role": "Developer"
         }
     ],
